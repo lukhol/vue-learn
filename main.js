@@ -13,6 +13,10 @@ Vue.component('product', {
             type: Object,
             required: true,
         },
+        productDataOriginal: {
+            type: Object, 
+            required: true,
+        },
         almostSoldOutQuantity: {
             type: Number,
             required: true,
@@ -30,7 +34,7 @@ Vue.component('product', {
                 <!-- IF LSE-->
                 <!-- i can use array for more than one style/class -->
                 <div class="description" :style="[quantity <= almostSoldOutQuantity ? {'color': 'red' } : {}]">
-                    <p v-if="quantity > almostSoldOutQuantity">In Stock</p>
+                    <p v-if="quantity > almostSoldOutQuantity">In Stock ({{quantity}})</p>
                     <p v-else-if="quantity > 0">Almost sold out, there are only {{quantity}} left</p>
                     <p v-else>Out of Stock</p>
                     <p>Shipping: {{shipping}}</p>
@@ -68,8 +72,8 @@ Vue.component('product', {
                 </button>
                 <button 
                     v-on:click="removeFromCart" 
-                    :disabled="cart === 0"
-                    :class="[{ disabledButton: cart === 0 }, { 'remove-button': cart > 0 }]"
+                    :disabled="!canRemove"
+                    :class="[{ disabledButton: !canRemove }, { 'remove-button': canRemove }]"
                 >
                     Remove
                 </button>
@@ -97,7 +101,7 @@ Vue.component('product', {
         },
         colorHover(index) {
             this.selectedVariant = index;
-        }
+        },
     },
     // Computed properties are cached until any of dependencies changed.
     computed: {
@@ -113,8 +117,12 @@ Vue.component('product', {
             return this.productData.variants[this.selectedVariant].quantity > 0;
         },
         quantity() {
-            console.log('quantity', this.productData);
             return this.productData.variants[this.selectedVariant].quantity;
+        },
+        canRemove() {
+            const originalQuantity = this.productDataOriginal.variants[this.selectedVariant].quantity;
+            const currentQuantity = this.productData.variants[this.selectedVariant].quantity;
+            return originalQuantity > currentQuantity;
         },
         shipping() {
             if(this.premium) {
@@ -126,57 +134,112 @@ Vue.component('product', {
     },
 });
 
+function canAdd(product, productTypeId) {
+    if(!product || !product.variants){ 
+        return false;
+    }
+
+    const variant = product.variants.find(type => type.id === productTypeId);
+    return variant && variant.quantity > 0;
+}
+
+function canRemove(product, productTypeId) {
+    if(!product || !product.variants){ 
+        return false;
+    }
+
+    const variant = product.variants.find(type => type.id === productTypeId);
+    return variant && variant.quantity > 0;
+}
+
+function computeCart(products, currentProducts) {
+    const cart = [];
+
+    for(let i = 0; i < products.length; i++) {
+        const prod = products[i];
+        const currProd = currentProducts[i];
+
+        for(let j = 0; j < prod.variants.length; j++) {
+            const variant = prod.variants[j];
+            const currVariant = currProd.variants[j];
+
+            if(variant.quantity !== currVariant.quantity) {
+                cart.push({
+                    name: `${prod.name} (${variant.color})`,
+                    productId: prod.id,
+                    typeId: variant.id,
+                    quantity: variant.quantity - currVariant.quantity,
+                });
+            }
+        }
+        
+    }
+
+    return cart;
+}
+
+
+const products = [{ 
+    id: 1,
+    name: 'Socks', 
+    details: ["80% cotton", "20% cotton", "BEST!"],
+    variants: [
+        { id: 1, color: "green", image: 'https://image.flaticon.com/icons/svg/358/358441.svg', quantity: 21, price: 22.99 },
+        { id: 2, color: "blue", image: 'https://image.flaticon.com/icons/svg/2719/2719885.svg', quantity: 12, price: 24.99 },
+    ],
+}];
+
 const app = new Vue({
     el: '#app',
     data: {
         ALMOST_SOLD_OUT_QUANTITY: 2,
         premium: true,
-        cart: [],
-        products: [{ 
-            id: 1,
-            name: 'Socks', 
-            details: ["80% cotton", "20% cotton", "BEST!"],
-            variants: [
-                {id: 1, color: "green", image: 'https://image.flaticon.com/icons/svg/358/358441.svg', quantity: 21, },
-                {id: 2, color: "blue", image: 'https://image.flaticon.com/icons/svg/2719/2719885.svg', quantity: 12, },
-            ],
-        }],
+        // Should be copied for eq. using lodash or immutable js but this is simple and fast to write.
+        products: JSON.parse(JSON.stringify(products)),
+        currentProducts: JSON.parse(JSON.stringify(products)),
     },
     methods: {
         addToCart(productId, typeId) {
-            for(const product of this.products) {
-                if(product.id === productId) {
-                    for(const variant of product.variants) {
-                        if(variant.id === typeId) {
-                            variant.quantity -= 1;
-                            
-                            const itemInCart = this.cart.find(item => item.id === productId && item.typeId === typeId);
-                            if(itemInCart) {
-                                itemInCart.quantity += 1;
-                            } else {
-                                this.cart.push({
-                                    id: product.id,
-                                    typeId: variant.id,
-                                    name: product.name,
-                                    quantity: 1,
-                                });
-                            }
-                            break;
-                        }
-                    }
+            const productsCopy = JSON.parse(JSON.stringify(this.currentProducts));
+            const product = productsCopy.find(p => p.id === productId);
 
-                    break;
+            if(canAdd(product, typeId)) {
+                for(const variant of product.variants) {
+                    if(variant.id === typeId) {
+                        variant.quantity -= 1;
+                        this.currentProducts = productsCopy;
+                        break;
+                    }
                 }
             }
         },
         removeFromCart(productId, typeId) {
-            console.log(productId, typeId);
-            const cartItem = this.cart.find(item => item.id === productId && item.typeId === typeId);
-            if(cartItem && cartItem.quantity > 1) {
-                cartItem.quantity -=1 ;
-            } else {
-                this.cart = this.cart.filter(item => item.id !== productId && item.typeId !== typeId);
+            const productsCopy = JSON.parse(JSON.stringify(this.currentProducts));
+            const product = productsCopy.find(p => p.id === productId);
+
+            if(!product) {
+                console.log('Cannot remove product ', productId);
+                return;
             }
+
+            for(const variant of product.variants) {
+                if(variant.id === typeId) {
+                    variant.quantity += 1;
+                    this.currentProducts = productsCopy;
+                    break;
+                }
+            }
+        },
+        decreaseCartItem(cartItem) {
+            this.removeFromCart(cartItem.productId, cartItem.typeId);
+        },
+        increaseCartItem(cartItem) {
+            this.addToCart(cartItem.productId, cartItem.typeId);
         }
+    },
+    computed: {
+        cart() {
+            return computeCart(this.products, this.currentProducts);
+        },
     }
 });
