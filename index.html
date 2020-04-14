@@ -29,11 +29,25 @@
                     :almost-sold-out-quantity="ALMOST_SOLD_OUT_QUANTITY"
                     @add-to-cart="addToCart" 
                     @remove-from-cart="removeFromCart"
-                />
+                    @comment-added="commentAdded"
+                ></product>
+
+                <div v-if="findComment(singleProduct.id)">
+                    <h1>Product comments</h1>
+                    <product-comment 
+                        :key="findComment(singleProduct.id).id"
+                        :text="findComment(singleProduct.id).comment" 
+                        :author="findComment(singleProduct.id).author"
+                    ></product-comment>
+                </div>
             </div>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
-        <script src="main.js"></script>
+
+        <script src="utils.js"></script>
+        <script src="components/product.js"></script>
+        <script src="components/product-comment.js"></script>
+        <script src="main.js"></script> 
     </body>
 </html>

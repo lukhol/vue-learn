@@ -1,184 +1,3 @@
-Vue.component('product', {
-    props: {
-        premium: {
-            type: Boolean,
-            required: true,
-            default: false,
-        },
-        cart: {
-            type: Array,
-            required: true,
-        },
-        productData: {
-            type: Object,
-            required: true,
-        },
-        productDataOriginal: {
-            type: Object, 
-            required: true,
-        },
-        almostSoldOutQuantity: {
-            type: Number,
-            required: true,
-        }
-    },
-    template: `
-        <div class="product">
-            <div class="product-image">
-                <img :src="image" />
-            </div>
-            <div class="product-info">
-                <!-- Simple binding that can be later changed by app.product = something -->
-                <h1>{{title}}</h1>
-                
-                <!-- IF LSE-->
-                <!-- i can use array for more than one style/class -->
-                <div class="description" :style="[quantity <= almostSoldOutQuantity ? {'color': 'red' } : {}]">
-                    <p v-if="quantity > almostSoldOutQuantity">In Stock ({{quantity}})</p>
-                    <p v-else-if="quantity > 0">Almost sold out, there are only {{quantity}} left</p>
-                    <p v-else>Out of Stock</p>
-                    <p>Shipping: {{shipping}}</p>
-                </div>
-
-                <!-- Simple for-->
-                <div v-show="detailsVisible">
-                    <ul>
-                        <li v-for="detail in productData.details">
-                            {{detail}}
-                        </li>
-                    </ul>
-                </div>
-
-                <h4>Colors</h4>
-
-                <!-- Style binding, for, key, event handler binding, using method from new Vue({config})-->
-                <div 
-                    v-for="(variant, index) in productData.variants" 
-                    :key="variant.id"
-                    class="color-box"
-                    :style="{backgroundColor: variant.color, 'font-size': '1.1em'}"
-                    @mouseover="colorHover(index)"
-                >
-                    
-                </div>
-
-                <!-- Disabling button based on config data object -->
-                <button 
-                    v-on:click="addToCart" 
-                    :disabled="!inStock"
-                    :class="{ disabledButton: !inStock }"
-                >
-                    Add to cart
-                </button>
-                <button 
-                    v-on:click="removeFromCart" 
-                    :disabled="!canRemove"
-                    :class="[{ disabledButton: !canRemove }, { 'remove-button': canRemove }]"
-                >
-                    Remove
-                </button>
-            </div>
-        </div>
-    `,
-    data() {
-        return {
-            brand: 'LUKHOL',
-            selectedVariant: 0,
-            detailsVisible: true, // More performant - just hidden
-            removeFromCartStyle: {
-                'background-color': 'red'
-            }
-        };
-    },
-    methods: {
-        addToCart() {
-            const typeId = this.productData.variants[this.selectedVariant].id;
-            this.$emit('add-to-cart', this.productData.id, typeId);
-        },
-        removeFromCart() {
-            const typeId = this.productData.variants[this.selectedVariant].id;
-            this.$emit('remove-from-cart', this.productData.id, typeId);
-        },
-        colorHover(index) {
-            this.selectedVariant = index;
-        },
-    },
-    // Computed properties are cached until any of dependencies changed.
-    computed: {
-        title() {
-            // Can be updated in real time
-            setTimeout(() => { this.brand = 'KŁODA'}, 0);
-            return `${this.brand} ${this.productData.name}`;
-        },
-        image() {
-            return this.productData.variants[this.selectedVariant].image;
-        },
-        inStock() {
-            return this.productData.variants[this.selectedVariant].quantity > 0;
-        },
-        quantity() {
-            return this.productData.variants[this.selectedVariant].quantity;
-        },
-        canRemove() {
-            const originalQuantity = this.productDataOriginal.variants[this.selectedVariant].quantity;
-            const currentQuantity = this.productData.variants[this.selectedVariant].quantity;
-            return originalQuantity > currentQuantity;
-        },
-        shipping() {
-            if(this.premium) {
-                return "Free"
-            } else {
-                return "100$";
-            }
-        }
-    },
-});
-
-function canAdd(product, productTypeId) {
-    if(!product || !product.variants){ 
-        return false;
-    }
-
-    const variant = product.variants.find(type => type.id === productTypeId);
-    return variant && variant.quantity > 0;
-}
-
-function canRemove(product, productTypeId) {
-    if(!product || !product.variants){ 
-        return false;
-    }
-
-    const variant = product.variants.find(type => type.id === productTypeId);
-    return variant && variant.quantity > 0;
-}
-
-function computeCart(products, currentProducts) {
-    const cart = [];
-
-    for(let i = 0; i < products.length; i++) {
-        const prod = products[i];
-        const currProd = currentProducts[i];
-
-        for(let j = 0; j < prod.variants.length; j++) {
-            const variant = prod.variants[j];
-            const currVariant = currProd.variants[j];
-
-            if(variant.quantity !== currVariant.quantity) {
-                cart.push({
-                    name: `${prod.name} (${variant.color})`,
-                    productId: prod.id,
-                    typeId: variant.id,
-                    quantity: variant.quantity - currVariant.quantity,
-                });
-            }
-        }
-        
-    }
-
-    return cart;
-}
-
-
 const products = [{ 
     id: 1,
     name: 'Socks', 
@@ -197,6 +16,7 @@ const app = new Vue({
         // Should be copied for eq. using lodash or immutable js but this is simple and fast to write.
         products: JSON.parse(JSON.stringify(products)),
         currentProducts: JSON.parse(JSON.stringify(products)),
+        comments: [], // { id, productId, comment, author } ?
     },
     methods: {
         addToCart(productId, typeId) {
@@ -235,6 +55,17 @@ const app = new Vue({
         },
         increaseCartItem(cartItem) {
             this.addToCart(cartItem.productId, cartItem.typeId);
+        },
+        findComment(productId) {
+            return this.comments.find(comment => comment.productId === productId);
+        },
+        commentAdded(commentForm) {
+            console.log(this.comments);
+            this.comments = [
+                ...this.comments,
+                { id: 123, ...commentForm, productId: 1}
+            ];
+            console.log(this.comments);
         }
     },
     computed: {
