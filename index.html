@@ -6,39 +6,55 @@
         <link rel="stylesheet" type="text/css" href="index.css">
     </head>
     <body>
-        <div id="app">
-            <div class="cart">
-                <p>
-                    Cart
-                    <ul v-for="cartItem in cart">
-                        <li>
-                            {{cartItem.name}} ({{cartItem.quantity}} szt) 
-                            <button v-on:click="increaseCartItem(cartItem)">+</button>
-                            <button v-on:click="decreaseCartItem(cartItem)">-</button>
-                        </li>
-                    </ul>
-                </p>
-            </div>
-            <div v-for="(singleProduct, index) in currentProducts">
-                <product 
-                    :product-data="singleProduct"
-                    :product-data-original="products[index]"
-                    :key="singleProduct.id"
-                    :premium="premium" 
-                    :cart="cart"
-                    :almost-sold-out-quantity="ALMOST_SOLD_OUT_QUANTITY"
-                    @add-to-cart="addToCart" 
-                    @remove-from-cart="removeFromCart"
-                    @comment-added="commentAdded"
-                ></product>
+        <nav>
+            <h1>VUE playground product and cart</h1>
+        </nav>
+        <div id="app" class="container">
+            <div class="row">
+                <div 
+                    class="col-8" 
+                    v-for="(singleProduct, index) in currentProducts"
+                >
+                    <product 
+                        :product-data="singleProduct"
+                        :product-data-original="products[index]"
+                        :key="singleProduct.id"
+                        :premium="premium" 
+                        :cart="cart"
+                        :almost-sold-out-quantity="ALMOST_SOLD_OUT_QUANTITY"
+                        @add-to-cart="addToCart" 
+                        @remove-from-cart="removeFromCart"
+                        @comment-added="commentAdded"
+                    ></product>
+    
+                    <div v-if="findComment(singleProduct.id)">
+                        <h1>Product comments</h1>
+                        <product-comment 
+                            :key="findComment(singleProduct.id).id"
+                            :text="findComment(singleProduct.id).comment" 
+                            :author="findComment(singleProduct.id).author"
+                        ></product-comment>
+                    </div>
+                </div>
 
-                <div v-if="findComment(singleProduct.id)">
-                    <h1>Product comments</h1>
-                    <product-comment 
-                        :key="findComment(singleProduct.id).id"
-                        :text="findComment(singleProduct.id).comment" 
-                        :author="findComment(singleProduct.id).author"
-                    ></product-comment>
+
+                <div class="cart col-4">
+                    <div class="cart-inner with-shadow">
+                        <div class="row both-center">
+                            <img src="https://image.flaticon.com/icons/svg/1170/1170678.svg" class="cart-icon" />
+                            <p v-show="cart.length === 0" class="text-center">Cart is empty</p>
+                        </div>
+
+                        <div class="cart-products">
+                            <ul v-for="cartItem in cart">
+                                <li>
+                                    {{cartItem.name}} ({{cartItem.quantity}} szt) 
+                                    <button v-on:click="increaseCartItem(cartItem)" class="button button-success button-circle">+</button>
+                                    <button v-on:click="decreaseCartItem(cartItem)" class="button button-danger button-circle">-</button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
